@@ -5,6 +5,7 @@
               pluginFormats="buildStandalone,buildVST3">
   <MAINGROUP id="DcqzGP" name="SimpleFlanger">
     <GROUP id="{790339FD-1EC4-5BD0-4848-4D137165E48C}" name="Source">
+      <FILE id="L8yw6K" name="TODO.txt" compile="0" resource="1" file="TODO.txt"/>
       <GROUP id="{CCE2958E-22A1-B652-4C5B-0EA51C49266B}" name="data">
         <GROUP id="{BF8F1166-E42B-8012-7630-201A383EEDDF}" name="DelayTimeSupportor">
           <FILE id="sTZufa" name="env.h" compile="0" resource="0" file="Source/data/DelayTimeSupportor/env.h"/>
@@ -14,7 +15,7 @@
           <FILE id="aZQdhW" name="static.h" compile="0" resource="0" file="Source/data/DelayTimeSupportor/static.h"/>
           <FILE id="TV7AIJ" name="waveTable.h" compile="0" resource="0" file="Source/data/DelayTimeSupportor/waveTable.h"/>
         </GROUP>
-        <FILE id="Zns0Xt" name="MonoFlanger.h" compile="0" resource="0" file="Source/data/MonoFlanger.h"/>
+        <FILE id="Qpul3q" name="MonoDelayLine.h" compile="0" resource="0" file="Source/data/MonoDelayLine.h"/>
         <FILE id="rP2MdB" name="SimpleFlanger.cpp" compile="1" resource="0"
               file="Source/data/SimpleFlanger.cpp"/>
         <FILE id="Bbalvw" name="SimpleFlanger.h" compile="0" resource="0" file="Source/data/SimpleFlanger.h"/>

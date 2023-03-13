@@ -1,9 +1,9 @@
 /*
   ==============================================================================
 
-    waveTable.h
-    Created: 18 Nov 2022 11:14:45am
-    Author:  mana
+	waveTable.h
+	Created: 18 Nov 2022 11:14:45am
+	Author:  mana
 
   ==============================================================================
 */
@@ -14,132 +14,85 @@
 
 class WaveTable {
 public:
-    WaveTable()
-        :m_formatMgr(new juce::AudioFormatManager),
-        m_sampleBegin(0.f), m_sampleEnd(1.f)
-    {
-        initPreset();
+	WaveTable()
+	{
+		m_waves.resize(5);
+		for (auto& w : m_waves) {
+			w.resize(kPresetSize + 1);
+		}
 
-        m_sample = &m_sine;
+		for (int i = 0; i < kPresetSize; ++i) {
+			m_waves[0][i] = sinf(i / static_cast<float>(kPresetSize) * juce::MathConstants<float>::twoPi);
+		}
 
-        m_formatMgr->registerBasicFormats();
-    }
+		for (int i = 0; i < kPresetSize; ++i) {
+			m_waves[1][i] = (acosf(sinf(i / static_cast<float>(kPresetSize) * juce::MathConstants<float>::twoPi)) / juce::MathConstants<float>::pi - 0.5f) * 2.f;
+		}
 
-    void loadNewSample(juce::File file)
-    {
-        juce::ScopedLock lock(m_locker);
+		for (int i = 0; i < kPresetSize; ++i) {
+			m_waves[2][i] = (i / static_cast<float>(kPresetSize) - 0.5f) * 2.f;
+		}
 
-        auto* reader = m_formatMgr->createReaderFor(file);
-        if (reader == nullptr) {
-            return;
-        }
+		for (int i = 0; i < kPresetSize; ++i) {
+			m_waves[3][i] = m_waves[0][i] > 0.0f ? 1.0f : -1.0f;
+		}
 
-        m_wavfile.setSize(1, reader->lengthInSamples);
-        reader->read(&m_wavfile, 0, reader->lengthInSamples, 0, true, false);
+		genNoise(64);
 
-        delete reader;
-    }
+		for (auto& w : m_waves) {
+			w[kPresetSize] = w[0];
+		}
+	}
 
-    void loadPreset(const juce::String& name) {
-        juce::ScopedLock lock(m_locker);
+	void genNoise(int nNoiseGen) {
+		const juce::ScopedLock sl(m_mutex);
 
-        if (name == "sine") {
-            m_sample = &m_sine;
-        }
-        else if (name == "triangle") {
-            m_sample = &m_tri;
-        }
-        else if (name == "sawtooth") {
-            m_sample = &m_saw;
-        }
-        else if (name == "pulse") {
-            m_sample = &m_pluse;
-        }
-        else if (name == "loopedNoise") {
-            m_sample = &m_noise;
-        }
-        else if (name == "from file") {
-            m_sample = &m_wavfile;
-        }
-    }
+		int couter = 0;
+		for (int i = 0; i < nNoiseGen; ++i) {
+			auto nSame = kPresetSize / nNoiseGen;
+			auto val = (rand() / float(INT16_MAX) - 0.5f) * 2.f;
+			for (int j = 0; j < nSame; j++) {
+				m_waves[4][couter] = val;
+				couter++;
+			}
+		}
+		m_waves[4][kPresetSize] = m_waves[4][0];
+	}
 
-    void getNextBlock(const std::vector<float>& indexs, std::vector<float>& buffer)
-    {
-        juce::ScopedLock lock(m_locker);
+	void getNextBlock(float jit, float wtPos, const std::vector<float>& indexs, std::vector<float>& buffer)
+	{
+		const juce::ScopedLock sl(m_mutex);
 
+		auto size = indexs.size();
+		auto wt = wtPos * (m_waves.size() - 1);
 
-        auto size = indexs.size();
-        const float* data = m_sample->getReadPointer(0);
-        const int length = m_sample->getNumSamples();
+		auto beforewt = (int)floor(wt);
+		auto intervalwt = wt - (int)beforewt;
+		int nextwt = beforewt + 1;
+		nextwt = nextwt > 4 ? 4 : nextwt;
 
-        for (size_t i = 0; i < size; ++i)
-        {
-            float sampleBegin = m_sampleBegin.getCurrentValue() * length;
-            float sampleEnd = m_sampleEnd.getCurrentValue() * length;
-            float range = sampleEnd - sampleBegin;
+		auto& wA = m_waves[beforewt];
+		auto& wB = m_waves[nextwt];
 
-            float index = indexs[i] * range + sampleBegin;
-            int before = (int)floor(index);
-            if (before >= length)
-                before -= (int)sampleBegin;
+		for (size_t i = 0; i < size; ++i)
+		{
+			float index = indexs[i] * kPresetSize;
+			auto before = (int)floor(index);
+			int next = before + 1;
+			next &= kmask;
+			float inter = index - (float)before;
 
-            int next = before + 1;
-            if (next >= length)
-                next -= (int)sampleEnd;
-            float inter = index - (float)before;
+			auto sa = (wA[before] + inter * (wA[next] - wA[before]));
+			auto sb = (wB[before] + inter * (wB[next] - wB[before]));
+			buffer[i] = sa + (sb - sa) * intervalwt + jit * m_waves[4][before];
 
-            buffer[i] = data[before] + inter * (data[next] - data[before]);
-        }
-    }
+			if (buffer[i] > 1.f)buffer[i] = 1.f;
+			if (buffer[i] < -1.f)buffer[i] = -1.f;
+		}
+	}
 
-    int getSampleLength() const {
-        return m_sample->getNumSamples();
-    }
-private:
-    static constexpr int kPresetSize = 2048;
-
-    void initPreset() {
-        m_sine.setSize(1, kPresetSize);
-        m_tri.setSize(1, kPresetSize);
-        m_saw.setSize(1, kPresetSize);
-        m_noise.setSize(1, kPresetSize);
-        m_pluse.setSize(1, kPresetSize);
-
-        float* ptr = m_sine.getWritePointer(0);
-        for (int i = 0; i < kPresetSize; ++i) {
-            ptr[i] = sinf(i / static_cast<float>(kPresetSize) * juce::MathConstants<float>::twoPi);
-        }
-
-        ptr = m_tri.getWritePointer(0);
-        for (int i = 0; i < kPresetSize; ++i) {
-            ptr[i] = (acosf(sinf(i / static_cast<float>(kPresetSize) * juce::MathConstants<float>::twoPi)) / juce::MathConstants<float>::pi - 0.5f) * 2.f;
-        }
-
-        ptr = m_saw.getWritePointer(0);
-        for (int i = 0; i < kPresetSize; ++i) {
-            ptr[i] = (i / static_cast<float>(kPresetSize) - 0.5f) * 2.f;
-        }
-
-        ptr = m_noise.getWritePointer(0);
-        for (int i = 0; i < kPresetSize; ++i) {
-            ptr[i] = (rand() / float(INT16_MAX) - 0.5f) * 2.f;
-        }
-
-        ptr = m_pluse.getWritePointer(0);
-        const float* rptr = m_sine.getReadPointer(0);
-        for (int i = 0; i < kPresetSize; ++i) {
-            ptr[i] = rptr[i] > 0.0f ? 1.0f : -1.0f;
-        }
-
-        m_wavfile = m_sine;
-    }
-
-    juce::AudioBuffer<float>* m_sample;
-    juce::CriticalSection m_locker;
-
-    std::unique_ptr<juce::AudioFormatManager> m_formatMgr;
-
-    juce::AudioBuffer<float> m_sine, m_tri, m_saw, m_noise, m_pluse, m_wavfile;
-public:
-    juce::SmoothedValue<float> m_sampleBegin, m_sampleEnd;
+	static constexpr int kPresetSize = 2048;
+	static constexpr int kmask = kPresetSize - 1;
+	std::vector<std::vector<float>> m_waves;
+	juce::CriticalSection m_mutex;
 };

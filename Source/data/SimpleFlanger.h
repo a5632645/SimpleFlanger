@@ -11,11 +11,33 @@
 #pragma once
 #include "DelayTimeSupportor/IDelayTimeSupportor.h"
 #include "DelayTimeSupportor/lfo.h"
-#include "MonoFlanger.h"
+#include "MonoDelayLine.h"
 
 class SimpleFlanger
 {
 public:
+    class LPF {
+    public:
+        void setCutOffFrequency(float cutoff) {
+            m_cutoff = cutoff;
+            auto g = float(std::tan(juce::MathConstants<double>::pi * m_cutoff / sampleRate));
+            G = g / (1 + g);
+        }
+
+        float process(float inputValue) {
+            auto v = G * (inputValue - s);
+            auto y = v + s;
+            s = y + v;
+            return y;
+        }
+
+        float m_cutoff = 24000.f;
+        float sampleRate = 48000.f;
+    private:
+        float s = 0.f;
+        float G = 0.f;
+    };
+
     SimpleFlanger();
 
     void prepare(float fs, int frameExpected);
@@ -32,8 +54,10 @@ public:
     DTSupportor::lfoSupportor m_lfo;
 
 
-    MonoFlanger m_left;
-    MonoFlanger m_right;
+    MonoDelayLine m_left;
+    MonoDelayLine m_right;
+    LPF m_leftDampLPF;
+    LPF m_rightDampLPF;
 
     juce::SmoothedValue<float> m_mix;
     juce::SmoothedValue<float> m_DelayMix;

@@ -1,0 +1,4 @@
+3.添加LFO的midi触发
+5.使用APVTS和绑定器
+7.BPM SYNC LFO
+8.preset保存（没学会）

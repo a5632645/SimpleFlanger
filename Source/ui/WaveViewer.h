@@ -11,7 +11,7 @@
 #pragma once
 
 #include <JuceHeader.h>
-#include "..\data\DelayTimeSupportor\waveTable.h"
+#include "../data/DelayTimeSupportor/lfo.h"
 
 //==============================================================================
 /*
@@ -20,16 +20,12 @@
 class WaveViewer  : public juce::Component
 {
 public:
-    WaveViewer(WaveTable& table);
-    ~WaveViewer() override;
+    explicit WaveViewer(DTSupportor::lfoSupportor& lfo);
+    ~WaveViewer() override = default;
 
     void paint (juce::Graphics&) override;
-    void resized() override;
 
 private:
-    WaveTable& m_table;
-    juce::TextButton m_buttonLoadWav;
-    juce::FileChooser m_chooser;
-    juce::ComboBox m_comboBoxWavType;
+    DTSupportor::lfoSupportor& m_table;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (WaveViewer)
 };
